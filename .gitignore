@@ -1,0 +1,26 @@
+# Device firmware dumps and build artifacts - never commit these.
+# They are copyrighted vendor binaries and specific to your device.
+*.bin
+*.bin.orig
+*.bin.patched
+*.img
+*.z
+logo.bin.lineage
+*.orange.tmp
+
+# Generated splash images
+splash*.png
+*_boot_*.png
+
+# The mtklogo build (clone it here or point $MTKLOGO at your own build)
+/mtklogo/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Editor / OS
+.DS_Store
+*.swp

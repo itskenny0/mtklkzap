@@ -1,0 +1,18 @@
+version: "1.1"
+profiles:
+  # MT6765 (Helio P35), 480x640 panel, BGRA big-endian.
+  # Verified against a stock logo partition of 11534336 bytes, 60 slots.
+  # Boot splash lives in slots 0 & 38 (duplicated).
+  - name: mt6765-480x640
+    color_model: bgrabe
+    formats:
+    # full-screen: boot splash (slots 0 & 38) + charging frames. 480x640x4 = 1228800
+    - { w: 480, h: 640, t: "fullscreen" }
+    # large charge-percent digits (slots 49-59). 48x80x4 = 15360
+    - { w: 48,  h: 80,  t: "digitbig" }
+    # small charge-percent digits 0-9 (slots 4-13). 14x20x4 = 1120
+    - { w: 14,  h: 20,  t: "digit" }
+    # "%" glyph (slot 14). 20x20x4 = 1600
+    - { w: 20,  h: 20,  t: "percent" }
+    # charge bar 1px line (slot 36). 135x1x4 = 540
+    - { w: 135, h: 1,   t: "line" }

@@ -1,0 +1,21 @@
+version: "1.1"
+profiles:
+  # MT6755 (Helio P10), 480x800 panel, BGRA big-endian.
+  # Verified against a stock logo partition of 8388608 bytes, 42 slots.
+  # Small-slot geometry matches the MT6739/MT6762 480x800 sets -- these are the
+  # stock MTK charging assets, shared across platforms; only the fullscreen size
+  # and the partition size differ (the latter is a build-logo.py argument).
+  # Boot splash lives in slots 0 & 38 (duplicated).
+  - name: mt6755-480x800
+    color_model: bgrabe
+    formats:
+    # full-screen: boot splash (slots 0 & 38) + charging frames. 480x800x4 = 1536000
+    - { w: 480, h: 800, t: "fullscreen" }
+    # charge digits (slots 15-24). 135x24x4 = 12960
+    - { w: 135, h: 24,  t: "digit" }
+    # glyph (slot 14). 54x48x4 = 10368
+    - { w: 54,  h: 48,  t: "glyph2" }
+    # glyphs (slots 4-13). 54x38x4 = 8208
+    - { w: 54,  h: 38,  t: "glyph" }
+    # charge bar 1px line (slot 36). 135x1x4 = 540
+    - { w: 135, h: 1,   t: "line" }

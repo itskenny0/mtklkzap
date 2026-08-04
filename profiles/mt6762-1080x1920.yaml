@@ -1,0 +1,23 @@
+version: "1.1"
+profiles:
+  # MT6762, 1080x1920 panel, BGRA big-endian.
+  # Verified against a stock logo partition of 11534336 bytes, 60 slots.
+  # mtklogo maps slots by decompressed byte-size, so only w*h (the product) must
+  # be right; slots you do not replace are carried through as raw .z, so their
+  # exact geometry never affects the output.
+  # Boot splash lives in slots 0 & 38 (duplicated).
+  - name: mt6762-1080x1920
+    color_model: bgrabe
+    formats:
+    # full-screen: boot splash (slots 0 & 38) + charging frames. 1080x1920x4 = 8294400
+    - { w: 1080, h: 1920, t: "fullscreen" }
+    # large charge-percent digits (slots 49-59). 108x192x4 = 82944  [confirmed]
+    - { w: 108,  h: 192,  t: "digitbig" }
+    # charge frames (slots 15-24). 152x104x4 = 63232  [product-correct; exact w*h unconfirmed]
+    - { w: 152,  h: 104,  t: "chargeframe" }
+    # "%" glyph (slot 14). 108x121x4 = 52272  [confirmed]
+    - { w: 108,  h: 121,  t: "percent" }
+    # small charge-percent digits (slots 4-13). 84x121x4 = 40656  [confirmed]
+    - { w: 84,   h: 121,  t: "digit" }
+    # charge bar 1px line (slot 36). 304x1x4 = 1216
+    - { w: 304,  h: 1,    t: "line" }

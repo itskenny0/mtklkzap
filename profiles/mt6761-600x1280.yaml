@@ -1,0 +1,31 @@
+version: "1.1"
+profiles:
+  # MT6761 (Helio A22), 600x1280 panel, BGRA big-endian.
+  # Verified against a stock logo partition of 8388608 bytes, 94 slots.
+  # Boot splash lives in slots 0 and 90 (duplicated), not 0 and 38 like the
+  # other devices here, so always confirm the pair with a contact sheet.
+  # mtklogo maps slots by decompressed byte size, so only w*h has to be right;
+  # slots you don't replace pass through as raw .z, so the non-fullscreen
+  # geometry below (product-correct, exact w*h not all pinned) never affects
+  # the output.
+  - name: mt6761-600x1280
+    color_model: bgrabe
+    formats:
+    # boot splash + most charging frames. 600x1280x4 = 3072000
+    - { w: 600, h: 1280, t: "fullscreen" }
+    # larger charging assets (slots 1 and 3). 720x1280x4 = 3686400
+    - { w: 720, h: 1280, t: "fullscreen2" }
+    # 195520 = 48880*4
+    - { w: 235, h: 208, t: "big" }
+    # 107256 = 26814*4
+    - { w: 218, h: 123, t: "mid" }
+    # 75208 = 18802*4
+    - { w: 158, h: 119, t: "mid2" }
+    # charge bar frames. 15704 = 3926*4
+    - { w: 151, h: 26,  t: "bar" }
+    # "%" glyph. 13888 = 3472*4
+    - { w: 62,  h: 56,  t: "percent" }
+    # charge digits. 8064 = 2016*4
+    - { w: 48,  h: 42,  t: "digit" }
+    # charge bar line. 604 = 151*4
+    - { w: 151, h: 1,   t: "line" }

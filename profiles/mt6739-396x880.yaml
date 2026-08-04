@@ -1,0 +1,19 @@
+version: "1.1"
+profiles:
+  # MT6739, 396x880 panel, BGRA big-endian logos.
+  # Boot splash lives in slots 0 & 38 (duplicated).
+  - name: mt6739-396x880
+    color_model: bgrabe
+    formats:
+    # full-screen: boot splash + charging frames. 396x880x4 = 1393920
+    - { w: 396, h: 880, t: "fullscreen" }
+    # secondary full-screen set (kernel/low-battery). 384x854x4 = 1311744
+    - { w: 384, h: 854, t: "fullscreen2" }
+    # small glyphs. 54x38x4 = 8208
+    - { w: 54,  h: 38,  t: "glyph" }
+    # small glyph. 54x48x4 = 10368
+    - { w: 54,  h: 48,  t: "glyph2" }
+    # charge digits. 135x24x4 = 12960
+    - { w: 135, h: 24,  t: "digit" }
+    # charge line. 135x1x4 = 540
+    - { w: 135, h: 1,   t: "line" }

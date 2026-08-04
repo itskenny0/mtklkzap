@@ -1,0 +1,18 @@
+version: "1.1"
+profiles:
+  # MT6833 (Dimensity 700), 720x1640 panel, BGRA big-endian.
+  # Verified against a stock logo partition of 12058624 bytes, 42 slots.
+  # Boot splash lives in slots 0 & 38 (duplicated).
+  - name: mt6833-720x1640
+    color_model: bgrabe
+    formats:
+    # full-screen: boot splash (slots 0 & 38) + charging frames. 720x1640x4 = 4723200
+    - { w: 720,  h: 1640, t: "fullscreen" }
+    # charge-percent digits 0-9 (slots 4-13). 45x64x4 = 11520
+    - { w: 45,   h: 64,   t: "digit" }
+    # "%" glyph (slot 14). 57x64x4 = 14592
+    - { w: 57,   h: 64,   t: "percent" }
+    # charge bar fill frames (slots 15-24). 186x10x4 = 7440
+    - { w: 186,  h: 10,   t: "bar" }
+    # charge bar 1px line (slot 36). 186x1x4 = 744
+    - { w: 186,  h: 1,    t: "line" }
