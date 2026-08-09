@@ -1,0 +1,22 @@
+version: "1.1"
+profiles:
+  # MT8768, 1200x1920 tablet panel, BGRA big-endian.
+  # Verified against a stock logo partition of 13631488 bytes, 42 slots.
+  # Boot splash lives in slots 0 and 38 (duplicated).
+  # mtklogo maps slots by decompressed byte size, so only w*h has to be right;
+  # slots you don't replace pass through as raw .z, so the non-fullscreen
+  # geometry below (product-correct, exact w*h not all pinned) never affects
+  # the output.
+  - name: mt8768-1200x1920
+    color_model: bgrabe
+    formats:
+    # boot splash + charging frames. 1200x1920x4 = 9216000
+    - { w: 1200, h: 1920, t: "fullscreen" }
+    # charging frames (slots 15-34). 262400 = 65600*4
+    - { w: 640,  h: 410,  t: "charge" }
+    # "%" glyph (slot 14). 2640 = 660*4
+    - { w: 60,   h: 11,   t: "percent" }
+    # charge digits (slots 4-13). 2160 = 540*4
+    - { w: 45,   h: 12,   t: "digit" }
+    # charge bar line (slot 36). 1216 = 304*4
+    - { w: 304,  h: 1,    t: "line" }

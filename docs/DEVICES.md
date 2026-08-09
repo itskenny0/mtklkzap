@@ -1,10 +1,10 @@
 # Tested devices
 
-Seven devices across six SoCs have been through these tools. All were unlocked
-and all used the `bgrabe` color model. The boot splash was slots 0 and 38 on all
-but one, so treat even that as something to confirm rather than assume. The point
-of listing them is to show what varies, so you know what to check on something
-new.
+Eight devices across seven SoCs have been through these tools, including one
+tablet. All were unlocked and all used the `bgrabe` color model. The boot splash
+was slots 0 and 38 on all but one, so treat even that as something to confirm
+rather than assume. The point of listing them is to show what varies, so you know
+what to check on something new.
 
 | SoC | Panel | Android | LK layout | Slots | Splash | Delay variant | Profile |
 |---|---|---|---|---|---|---|---|
@@ -15,6 +15,7 @@ new.
 | MT6762 | 1080x1920 | 13 | lk_a + lk_b (b empty) | 60 | 0, 38 | A10+ (022B) | mt6762-1080x1920 |
 | MT6765 | 480x640 | 14 | lk_a + lk_b (different) | 60 | 0, 38 | A10+ (022B) | mt6765-480x640 |
 | MT6833 | 720x1640 | 14 | lk_a + lk_b (different) | 42 | 0, 38 | A10+ (022B) | mt6833-720x1640 |
+| MT8768 | 1200x1920 | 11 | lk + lk2 (identical) | 42 | 0, 38 | A10+ (022B) | mt8768-1200x1920 |
 
 What actually varied between them:
 
