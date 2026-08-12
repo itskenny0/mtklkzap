@@ -1,10 +1,10 @@
 # Tested devices
 
-Eight devices across seven SoCs have been through these tools, including one
+Nine devices across eight SoCs have been through these tools, including one
 tablet. All were unlocked and all used the `bgrabe` color model. The boot splash
-was slots 0 and 38 on all but one, so treat even that as something to confirm
-rather than assume. The point of listing them is to show what varies, so you know
-what to check on something new.
+was slots 0 and 38 on most, but not all, so treat even that as something to
+confirm rather than assume. The point of listing them is to show what varies, so
+you know what to check on something new.
 
 | SoC | Panel | Android | LK layout | Slots | Splash | Delay variant | Profile |
 |---|---|---|---|---|---|---|---|
@@ -14,16 +14,18 @@ what to check on something new.
 | MT6762 | 480x800 | 14 | lk_a + lk_b (b empty) | 42 | 0, 38 | A10+ (022B) | mt6762-480x800 |
 | MT6762 | 1080x1920 | 13 | lk_a + lk_b (b empty) | 60 | 0, 38 | A10+ (022B) | mt6762-1080x1920 |
 | MT6765 | 480x640 | 14 | lk_a + lk_b (different) | 60 | 0, 38 | A10+ (022B) | mt6765-480x640 |
+| MT6768 | 720x1640 | 16 | lk_a + lk_b (different) | 43 | 0, 38, 42 | A10+ (022B) | mt6768-720x1640 |
 | MT6833 | 720x1640 | 14 | lk_a + lk_b (different) | 42 | 0, 38 | A10+ (022B) | mt6833-720x1640 |
 | MT8768 | 1200x1920 | 11 | lk + lk2 (identical) | 42 | 0, 38 | A10+ (022B) | mt8768-1200x1920 |
 
 What actually varied between them:
 
 The slot count was 42, 60, or 94. Never assume it; render a contact sheet. The
-splash pair was usually 0 and 38, but the MT6761 used 0 and 90, so confirm it
-visually rather than trusting the pattern. That device also mixed two fullscreen
-sizes in one partition (600x1280 and 720x1280), which is fine: you only replace
-the ones that hold the splash.
+splash was usually a duplicated pair at 0 and 38, but one device used 0 and 90,
+and another had three distinct branded full-screens (0, 38, 42) rather than a
+pair. Confirm visually rather than trusting the pattern. One device also mixed
+two fullscreen sizes in one partition (600x1280 and 720x1280), which is fine: you
+only replace the ones that hold the splash.
 
 The delay signature follows the LK build, not the running OS. The MT6761 above
 was booting an Android 12 GSI on a bootloader built in 2019, and it needed the

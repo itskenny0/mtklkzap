@@ -18,9 +18,9 @@ working across LK builds they've never seen.
 
 ## Which devices have actually been tested
 
-Eight devices, across seven SoCs: **MT6739**, **MT6755**, **MT6761**, **MT6762**
-(two of them, different panels), **MT6765**, **MT6833**, and **MT8768** (a
-tablet). Full details, panels, and quirks are in
+Nine devices, across eight SoCs: **MT6739**, **MT6755**, **MT6761**, **MT6762**
+(two of them, different panels), **MT6765**, **MT6768**, **MT6833**, and
+**MT8768** (a tablet). Full details, panels, and quirks are in
 [docs/DEVICES.md](docs/DEVICES.md).
 
 That is the entire tested set. If your device is not one of those exact
@@ -114,7 +114,7 @@ done
 # 1. Make a splash at the panel's exact size.
 ./make-splash.py --width 720 --height 1640 --src examples/lineage-logo.png -o splash.png
 
-# 2. Swap the boot splash slots. On every device so far these are 0 and 38.
+# 2. Swap the boot splash slots. Usually 0 and 38, but confirm on your device.
 #    build-logo.py unpacks its own result and proves only those changed.
 ./build-logo.py --logo logo.bin.orig --profile profiles/mt6833-720x1640.yaml \
                 --name mt6833-720x1640 --image splash.png --slots 0,38 \
@@ -178,9 +178,10 @@ ambiguous match.
 
 ## Things that tripped us up, so you don't have to
 
-The boot splash is a pair of duplicated slots, usually 0 and 38, but one device
-used 0 and 90 instead. Render a contact sheet and look rather than trusting the
-usual pair. The slot count varies too (42 to 94).
+The boot splash is usually a duplicated pair at 0 and 38, but not always: one
+device used 0 and 90, and one had three separate branded full-screens (0, 38,
+42). Render a contact sheet and look rather than trusting the usual pair. The
+slot count varies too (42 to 94).
 
 The delay signature follows the LK build, not the Android version you see in
 `getprop`. One device was running an Android 12 GSI on a 2019 bootloader and
