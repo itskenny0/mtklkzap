@@ -1,0 +1,11 @@
+version: "1.1"
+profiles:
+  # MT6739, 480x640 panel, BGRA big-endian. 39 slots. Boot splash 0 & 38.
+  - name: mt6739-480x640
+    color_model: bgrabe
+    formats:
+    - { w: 480, h: 640, t: "fullscreen" }   # 1228800
+    - { w: 54,  h: 34,  t: "bar" }           # 7344 = 1836*4
+    - { w: 36,  h: 41,  t: "percent" }       # 5904 = 1476*4
+    - { w: 43,  h: 30,  t: "digit" }         # 5160 = 1290*4
+    - { w: 102, h: 1,   t: "line" }          # 408 = 102*4

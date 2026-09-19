@@ -1,14 +1,15 @@
 # Tested devices
 
-Nine devices across eight SoCs have been through these tools, including one
-tablet. All were unlocked and all used the `bgrabe` color model. The boot splash
-was slots 0 and 38 on most, but not all, so treat even that as something to
-confirm rather than assume. The point of listing them is to show what varies, so
-you know what to check on something new.
+Ten devices across eight SoCs have been through these tools, including a tablet
+and a smartwatch. All were unlocked and all used the `bgrabe` color model. The
+boot splash was slots 0 and 38 on most, but not all, so treat even that as
+something to confirm rather than assume. The point of listing them is to show
+what varies, so you know what to check on something new.
 
 | SoC | Panel | Android | LK layout | Slots | Splash | Delay variant | Profile |
 |---|---|---|---|---|---|---|---|
 | MT6739 | 396x880 | 10 | lk + lk2 (identical) | 42 | 0, 38 | A10+ (022B) | mt6739-396x880 |
+| MT6739 | 480x640 | 7.1 | lk + lk2 (identical) | 39 | 0, 38 | pre-10 (012B) | mt6739-480x640 |
 | MT6755 | 480x800 | 9 | lk + lk2 (identical) | 42 | 0, 38 | pre-10 (012B) | mt6755-480x800 |
 | MT6761 | 600x1280 | 12 (GSI) | lk + lk2 (identical) | 94 | 0, 90 | pre-10 (012B) | mt6761-600x1280 |
 | MT6762 | 480x800 | 14 | lk_a + lk_b (b empty) | 42 | 0, 38 | A10+ (022B) | mt6762-480x800 |
@@ -31,6 +32,12 @@ The delay signature follows the LK build, not the running OS. The MT6761 above
 was booting an Android 12 GSI on a bootloader built in 2019, and it needed the
 pre-10 (`012B`) signature to match that old LK. So go by what the patcher detects,
 not by the Android version in `getprop`.
+
+The panel can be mounted rotated relative to the logo buffer. The MT6739 480x640
+above is a smartwatch whose screen is turned 90 degrees, so a normally-composed
+splash comes out sideways. Decode the stock splash: if its artwork or text looks
+rotated, yours needs the same turn. `make-splash.py --rotate 90` (clockwise
+degrees) handles it, and the quickest confirmation is just to flash and look.
 
 The LK layout tracks the Android era, not the chip. Newer devices are A/B
 (`lk_a`/`lk_b`), older ones have `lk` + `lk2`. On the A/B devices the two slots

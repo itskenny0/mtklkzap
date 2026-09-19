@@ -18,10 +18,10 @@ working across LK builds they've never seen.
 
 ## Which devices have actually been tested
 
-Nine devices, across eight SoCs: **MT6739**, **MT6755**, **MT6761**, **MT6762**
-(two of them, different panels), **MT6765**, **MT6768**, **MT6833**, and
-**MT8768** (a tablet). Full details, panels, and quirks are in
-[docs/DEVICES.md](docs/DEVICES.md).
+Ten devices, across eight SoCs: **MT6739** (two of them, different panels, one a
+smartwatch), **MT6755**, **MT6761**, **MT6762** (two, different panels),
+**MT6765**, **MT6768**, **MT6833**, and **MT8768** (a tablet). Full details,
+panels, and quirks are in [docs/DEVICES.md](docs/DEVICES.md).
 
 That is the entire tested set. If your device is not one of those exact
 SoC-plus-panel combinations, nobody has ever run this on hardware like yours, and
@@ -151,7 +151,9 @@ resolution. It sizes the logo to a fraction of the panel width (`--fraction`,
 default 0.78). On a physically large panel that default can look huge, so drop it;
 one tablet here used 0.63 to sit a little under the stock OEM logo. If you want to
 match or undercut the OEM logo specifically, decode its splash slot and measure
-the ink width first.
+the ink width first. For a panel mounted rotated (common on smartwatches, where a
+normal splash comes out sideways), `--rotate 90` turns the logo clockwise so it
+reads upright on the screen.
 
 `build-logo.py` swaps boot splash slots in a `logo.bin` and proves it only
 touched those slots, by unpacking the result and diffing every slot against the
