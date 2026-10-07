@@ -1,0 +1,16 @@
+{
+  "name": "rabbit-r1-v0.8.293",
+  "bytes": 864000,
+  "sha256": "534c72bea2bbb2173786594f650c2c1ec454258aefaa05de699349e26b71417e",
+  "handler": 165768,
+  "handler_end": 166008,
+  "fastboot_fail": 124668,
+  "fastboot_ack": 124396,
+  "registration": 127020,
+  "fastboot_register": 123596,
+  "got": 750684,
+  "handler_pointer": 751228,
+  "file_address_bias": 1207959040,
+  "hardware_tested": false,
+  "firmware_url": "https://github.com/rabbit-hmi-oss/firmware/releases/download/v0.8.293/rabbit_OS_v0.8.293.zip"
+}

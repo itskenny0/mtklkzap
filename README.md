@@ -1,7 +1,7 @@
 # mtklkzap
 
 Small tools for cleaning up the boot experience on unlocked MediaTek phones and
-tablets. Three things:
+tablets. The tools can:
 
 1. Replace the boot logo with your own image. Only the boot splash changes; every
    other image in the `logo` partition stays byte for byte identical.
@@ -9,6 +9,8 @@ tablets. Three things:
    pause that comes with it.
 3. On devices that show a dm-verity "Your device is corrupt / Press power button
    to continue" screen on every boot, make that go away too.
+
+4. Block accidental Fastboot relocking on explicitly supported firmware. The initial profile is RabbitOS v0.8.293; see [RELOCK.md](docs/RELOCK.md).
 
 The bootloader edits are tiny (a handful of bytes, same length in and out) and
 each one is checked by disassembling the result before you flash anything. The
@@ -95,9 +97,17 @@ cd mtklogo/cli && cargo build --release
 Put the resulting binary on your `PATH`, point `$MTKLOGO` at it, or pass
 `--mtklogo /path/to/mtklogo` to `build-logo.py`.
 
+The optional relock regression tests also use `unicorn`. The relock patch itself needs only `capstone` in addition to Python.
+
 Finally, `adb` and `fastboot` from Android platform-tools. You need root on the
 device to dump its stock partitions (or another way to read `lk`/`logo`, such as
 BROM). Flashing needs an unlocked bootloader.
+
+## Relock protection
+
+**Do not relock until the complete stock firmware package has been restored, including every LK slot.** Enforcing signatures with patched LK still installed can leave the device unbootable. The guard blocks the lock handler in the patched LK; other loaders and direct `seccfg` writes can still change the lock state.
+
+On supported firmware, run `patch_lk_relock.py` on pristine LK **before** the warning patches. Its separate verifier and the combined build sequence are documented in [RELOCK.md](docs/RELOCK.md). Unknown firmware is rejected.
 
 ## A full run, start to finish
 
@@ -170,6 +180,8 @@ no-ops if the device doesn't have that screen.
 `verify-lk.py` re-derives every target from the image and checks the patches by
 disassembly. It knows both the Android 9 and Android 10+ variants, and it also
 validates the dm-verity patch when present.
+
+`patch_lk_relock.py` blocks the registered Fastboot relock handler on reviewed stock LK images. `verify_lk_relock.py` checks the handler-only diff and the Fastboot `FAIL` response path. See [RELOCK.md](docs/RELOCK.md) for supported firmware and patch order.
 
 `flash-logo-lk.sh` is the flasher, with preflight checks. It reads sizes from the
 dumps and from the bootloader itself, skips all-zero (unprovisioned) LK slots, and

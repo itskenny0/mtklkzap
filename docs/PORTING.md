@@ -85,6 +85,10 @@ changed. If it prints anything else, stop.
 
 ## 6. Patch the bootloader
 
+For supported firmware, apply [relock protection](RELOCK.md) to pristine LK first.
+The following warning-only examples do not add that guard. Restore the complete
+stock firmware, including all LK slots, before relocking.
+
 ```bash
 # Android 10+; add --android-below-10 for Android 9 and older.
 ./patch_lk_orangestate.py lk_a.bin.orig --mode both -o lk_a.bin.patched
