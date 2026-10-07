@@ -9,14 +9,14 @@ tablets. The tools can:
    pause that comes with it.
 3. On devices that show a dm-verity "Your device is corrupt / Press power button
    to continue" screen on every boot, make that go away too.
-
-4. Block accidental Fastboot relocking on explicitly supported firmware. The initial profile is RabbitOS v0.8.293; see [RELOCK.md](docs/RELOCK.md).
+4. Block accidental Fastboot relocking on explicitly supported firmware. The
+   initial profile is RabbitOS v0.8.293; see [RELOCK.md](docs/RELOCK.md).
 
 The bootloader edits are tiny (a handful of bytes, same length in and out) and
 each one is checked by disassembling the result before you flash anything. The
-patchers find what they need by searching for code and instruction patterns
-rather than hard coded offsets, so the same scripts have a decent chance of
-working across LK builds they've never seen.
+warning patchers search for code and instruction patterns, which can match
+across different LK builds. Relock protection instead requires an exact firmware
+hash and reviewed offsets; it rejects all unlisted builds.
 
 ## Which devices have actually been tested
 
