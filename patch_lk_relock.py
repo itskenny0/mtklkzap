@@ -66,7 +66,7 @@ def main():
         print('Dry run: no file written')
         return
     path = args.output or args.input.with_name(args.input.name+'.relock-blocked')
-    if path.resolve() == args.input.resolve():
+    if path.resolve() == args.input.resolve() or (path.exists() and path.samefile(args.input)):
         raise ValueError('Refusing to overwrite input')
     if path.exists() and not args.force:
         raise ValueError('Output exists; use --force to replace it')

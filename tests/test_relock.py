@@ -154,6 +154,21 @@ class RelockTests(unittest.TestCase):
             self.assertEqual(output.read_bytes(),b'keep this output')
 
     @unittest.skipUnless(os.environ.get('MTKLKZAP_TEST_LK'),'stock LK not supplied')
+    def test_rabbit_input_aliases(self):
+        original = Path(os.environ['MTKLKZAP_TEST_LK']).read_bytes()
+        with tempfile.TemporaryDirectory(prefix='mtklkzap-test-') as directory:
+            source = Path(directory)/'stock.img'
+            source.write_bytes(original)
+            for link in [os.link,os.symlink]:
+                with self.subTest(link=link.__name__):
+                    alias = Path(directory)/(link.__name__+'.img')
+                    link(source,alias)
+                    result = self.run_tool('patch_lk_relock.py',source,'-o',alias,
+                                           '--force',success=False)
+                    self.assertIn('Refusing to overwrite input',result.stderr)
+                    self.assertEqual(source.read_bytes(),original)
+
+    @unittest.skipUnless(os.environ.get('MTKLKZAP_TEST_LK'),'stock LK not supplied')
     def test_rabbit_warning_patches(self):
         original = Path(os.environ['MTKLKZAP_TEST_LK']).read_bytes()
         profile = select_profile(original)
