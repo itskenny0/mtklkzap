@@ -4,10 +4,13 @@ import hashlib
 import os
 from pathlib import Path
 import struct
+import subprocess
 import sys
+import tempfile
 import unittest
 
-sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0,str(ROOT))
 from patch_lk_relock import MESSAGE, branch_w, make_patch, select_profile
 from verify_lk_relock import verify
 from unicorn import Uc, UC_ARCH_ARM, UC_MODE_THUMB, UC_HOOK_CODE, UC_HOOK_MEM_WRITE
@@ -51,6 +54,12 @@ def emulate(data, profile, bias=0x100000, argument=0):
 
 
 class RelockTests(unittest.TestCase):
+    def run_tool(self, name, *args, success=True):
+        result = subprocess.run([sys.executable, str(ROOT/name), *map(str,args)],
+                                capture_output=True, text=True)
+        self.assertEqual(result.returncode == 0, success, result.stdout+result.stderr)
+        return result
+
     def setUp(self):
         blob = bytearray(4096)
         entry,fail,ack,label = 0x500,0x800,0x780,0x900
@@ -110,6 +119,60 @@ class RelockTests(unittest.TestCase):
                          (bias+profile['handler'])|1)
         for argument in [0,1,0xffffffff]:
             emulate(patched,profile,bias,argument)
+
+    @unittest.skipUnless(os.environ.get('MTKLKZAP_TEST_LK'),'stock LK not supplied')
+    def test_rabbit_cli(self):
+        original = Path(os.environ['MTKLKZAP_TEST_LK']).read_bytes()
+        profile = select_profile(original)
+        expected = make_patch(original,profile)
+        with tempfile.TemporaryDirectory(prefix='mtklkzap-test-') as directory:
+            source = Path(directory)/'lk.img'
+            output = Path(directory)/'lk.img.relock-blocked'
+            source.write_bytes(original)
+            self.run_tool('patch_lk_relock.py',source,'--dry-run')
+            self.assertEqual(list(Path(directory).iterdir()),[source])
+            self.run_tool('patch_lk_relock.py',source)
+            self.assertEqual(output.read_bytes(),expected)
+            self.run_tool('verify_lk_relock.py',source,output)
+
+            output.write_bytes(b'existing output')
+            result = self.run_tool('patch_lk_relock.py',source,success=False)
+            self.assertIn('Output exists',result.stderr)
+            self.assertEqual(output.read_bytes(),b'existing output')
+            self.run_tool('patch_lk_relock.py',source,'--force')
+            self.assertEqual(output.read_bytes(),expected)
+            result = self.run_tool('patch_lk_relock.py',source,'-o',source,'--force',success=False)
+            self.assertIn('Refusing to overwrite input',result.stderr)
+            self.assertEqual(source.read_bytes(),original)
+
+            # --force must not accept a modified image or clobber its output.
+            source.write_bytes(expected)
+            output.write_bytes(b'keep this output')
+            result = self.run_tool('patch_lk_relock.py',source,'--force',success=False)
+            self.assertIn('Unsupported LK',result.stderr)
+            self.assertEqual(source.read_bytes(),expected)
+            self.assertEqual(output.read_bytes(),b'keep this output')
+
+    @unittest.skipUnless(os.environ.get('MTKLKZAP_TEST_LK'),'stock LK not supplied')
+    def test_rabbit_warning_patches(self):
+        original = Path(os.environ['MTKLKZAP_TEST_LK']).read_bytes()
+        profile = select_profile(original)
+        with tempfile.TemporaryDirectory(prefix='mtklkzap-test-') as directory:
+            stock,guard,orange,final = [Path(directory)/name for name in
+                                       ['stock.img','guard.bin','orange.bin','final.bin']]
+            stock.write_bytes(original)
+            self.run_tool('patch_lk_relock.py',stock,'-o',guard)
+            self.run_tool('verify_lk_relock.py',stock,guard)
+            self.run_tool('patch_lk_orangestate.py',guard,'--mode','both','-o',orange)
+            self.run_tool('patch_lk_dmverity.py',orange,'-o',final)
+            self.run_tool('verify-lk.py',guard,final)
+            guarded,patched = guard.read_bytes(),final.read_bytes()
+            self.assertEqual(len(patched),len(original))
+            self.assertEqual(patched[profile['handler']:profile['handler_end']],
+                             guarded[profile['handler']:profile['handler_end']])
+            self.assertEqual(patched[profile['fastboot_fail']:profile['fastboot_fail']+16],
+                             original[profile['fastboot_fail']:profile['fastboot_fail']+16])
+            emulate(patched,profile,profile['file_address_bias'])
 
 
 if __name__ == '__main__':

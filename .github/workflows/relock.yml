@@ -1,0 +1,101 @@
+name: Relock protection
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: relock-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TMPDIR: /rabbitr1/.tmp
+  XDG_CACHE_HOME: /rabbitr1/.cache
+  XDG_CONFIG_HOME: /rabbitr1/.cache/config
+  XDG_DATA_HOME: /rabbitr1/.cache/data
+  GIT_CONFIG_GLOBAL: /rabbitr1/.gitconfig
+  GIT_CONFIG_NOSYSTEM: '1'
+  GIT_TERMINAL_PROMPT: '0'
+  PYTHONDONTWRITEBYTECODE: '1'
+
+jobs:
+  relock:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+        working-directory: /rabbitr1/src/mtklkzap
+    steps:
+      - name: Check out the tested commit
+        working-directory: ${{ github.workspace }}
+        run: |
+          sudo install -d -o "$(id -u)" -g "$(id -g)" /rabbitr1
+          mkdir -p /rabbitr1/src/mtklkzap /rabbitr1/.tmp /rabbitr1/.cache /rabbitr1/fixtures
+          git -C /rabbitr1/src/mtklkzap init
+          git -C /rabbitr1/src/mtklkzap remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
+          git -C /rabbitr1/src/mtklkzap fetch --no-tags --depth=1 origin "$GITHUB_SHA"
+          git -C /rabbitr1/src/mtklkzap checkout --detach FETCH_HEAD
+          test "$(git -C /rabbitr1/src/mtklkzap rev-parse HEAD)" = "$GITHUB_SHA"
+
+      - name: Install test dependencies
+        run: |
+          python3 -m venv /rabbitr1/test-env
+          /rabbitr1/test-env/bin/pip install capstone==5.0.7 unicorn==2.1.4
+
+      - name: Test with synthetic firmware
+        run: /rabbitr1/test-env/bin/python tests/test_relock.py -v
+
+      - name: Read stock firmware identity
+        id: stock
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          from pathlib import Path
+          profile = json.loads(Path('profiles/lk/rabbit-r1-v0.8.293.json').read_text())
+          print('sha256=' + profile['sha256'])
+          print('url=' + profile['firmware_url'])
+          PY
+
+      - name: Cache stock LK
+        id: cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: /rabbitr1/fixtures/lk.img
+          key: stock-lk-${{ steps.stock.outputs.sha256 }}
+
+      - name: Download stock firmware
+        if: steps.cache.outputs.cache-hit != 'true'
+        env:
+          FIRMWARE_URL: ${{ steps.stock.outputs.url }}
+        run: |
+          curl --fail --location --retry 3 --max-time 900 "$FIRMWARE_URL" -o /rabbitr1/.tmp/stock.zip
+          echo 'f6c28b221a91055ec5e44ab0ac0ee59c7e6b52fac12ad08f2bb23c8f0551c6c0  /rabbitr1/.tmp/stock.zip' | sha256sum -c -
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          with ZipFile('/rabbitr1/.tmp/stock.zip') as archive:
+              data = archive.read('rabbit_OS_v0.8.293_20250516110545/lk.img')
+          Path('/rabbitr1/fixtures/lk.img').write_bytes(data)
+          PY
+          rm /rabbitr1/.tmp/stock.zip
+
+      - name: Check stock LK identity
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from patch_lk_relock import select_profile
+          data = Path('/rabbitr1/fixtures/lk.img').read_bytes()
+          profile = select_profile(data)
+          assert len(data) == profile['bytes']
+          print('Verified ' + profile['name'])
+          PY
+
+      - name: Test stock handler and combined patches
+        env:
+          MTKLKZAP_TEST_LK: /rabbitr1/fixtures/lk.img
+        run: /rabbitr1/test-env/bin/python tests/test_relock.py -v

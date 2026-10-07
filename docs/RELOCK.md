@@ -79,7 +79,15 @@ MTKLKZAP_TEST_LK=/path/to/stock/lk.img python3 tests/test_relock.py -v
 ```
 
 Tests use a synthetic fixture when stock firmware is unavailable; the real-image
-test is then explicitly skipped. Firmware dumps are not committed. Add further
+tests are then explicitly skipped. The GitHub Actions workflow runs both sets:
+it downloads the official RabbitOS archive, verifies its SHA256, extracts LK,
+and verifies LK against the firmware profile on every run, including cache hits.
+The stock tests cover the command-line patcher, rejected writes, and the combined
+relock, orange-state and dm-verity patches. The final combined image must still
+execute the relock refusal in Unicorn. CI does not flash a device or establish
+hardware support.
+
+Firmware dumps are not committed. Add further
 profiles only after tracing their registered lock handlers and response paths,
 and testing them against the actual images. Offsets from one LK must not be
 reused for another firmware merely because the SoC matches.
