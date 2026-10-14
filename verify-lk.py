@@ -55,6 +55,36 @@ def detect_dmverity(orig, patched):
     return None
 
 
+def detect_vendor_boot(orig, patched, skip):
+    """If a cbnz was turned into a b to the same target (the vendor_boot
+    request patch), return its file offset; else None. `skip` holds offsets
+    already accounted for."""
+    for i in range(0, len(orig) - 1, 2):
+        if i in skip or orig[i:i + 2] == patched[i:i + 2]:
+            continue
+        a, b = dis(orig, i, 2), dis(patched, i, 2)
+        if a and b and a[0].mnemonic == "cbnz" and b[0].mnemonic == "b" \
+                and a[0].op_str.split("#")[-1] == b[0].op_str.split("#")[-1]:
+            return i
+    return None
+
+
+def loads_string(data, start, end, target):
+    """True if an ldr rN,[pc,#x]; add rN,pc pair in [start, end) yields target."""
+    for a in dis(data, start, end - start):
+        if a.mnemonic != "ldr" or "[pc," not in a.op_str.replace(" ", ""):
+            continue
+        for nxt in dis(data, a.address + a.size, 12):
+            if nxt.mnemonic == "add" and nxt.op_str == a.op_str.split(",")[0] + ", pc":
+                imm = int(a.op_str.split("#")[1].rstrip("]"), 0)
+                lit = ((a.address + 4) & ~3) + imm
+                val = int.from_bytes(data[lit:lit + 4], "little")
+                if (val + nxt.address + 4) & 0xFFFFFFFF == target:
+                    return True
+                break
+    return False
+
+
 class Checker:
     def __init__(self):
         self.ok = True
@@ -82,9 +112,11 @@ def verify(orig_path, patched_path):
     # The orange-state patch changes exactly 100 bytes. The optional dm-verity
     # patch adds 2 more (a single cbnz -> nop), so account for it if present.
     dmv_off = detect_dmverity(o, p)
-    expected = 100 + (2 if dmv_off is not None else 0)
+    vb_off = detect_vendor_boot(o, p, {dmv_off})
+    expected = 100 + (2 if dmv_off is not None else 0) + (2 if vb_off is not None else 0)
     diffs = [i for i in range(len(o)) if o[i] != p[i]]
-    label = "100 bytes changed" if dmv_off is None else "102 bytes changed (orange + dm-verity)"
+    label = f"{expected} bytes changed (orange" + (" + dm-verity" if dmv_off is not None else "") \
+        + (" + vendor_boot" if vb_off is not None else "") + ")"
     check(f"exactly {label} (got {len(diffs)})", len(diffs) == expected)
 
     # --- text blanking -------------------------------------------------------
@@ -169,6 +201,20 @@ def verify(orig_path, patched_path):
         check("dm-verity: then pop {r4, r5, pc}", seq[2] == ("pop", "{r4, r5, pc}"))
         check("dm-verity: warning strings still present (removed by control flow)",
               b"Your device is corrupt." in p)
+
+    # --- optional vendor_boot request patch ----------------------------------
+    if vb_off is not None:
+        print(f"    vendor_boot request patch present @0x{vb_off:x}")
+        was, now = dis(o, vb_off, 2)[0], dis(p, vb_off, 2)[0]
+        print(f"      0x{vb_off:05x}: {was.bytes.hex()} {was.mnemonic} {was.op_str} -> "
+              f"{now.bytes.hex()} {now.mnemonic} {now.op_str}")
+        check("vendor_boot: cbnz r0 became b to the same target",
+              was.op_str.startswith("r0,") and now.size == 2)
+        name = o.find(b"\0vendor_boot\0") + 1
+        check("vendor_boot: the guarded code loads the vendor_boot name",
+              name > 0 and loads_string(o, vb_off - 16, vb_off, name))
+        check("vendor_boot: a bl immediately precedes the cbnz",
+              dis(o, vb_off - 4, 4)[0].mnemonic == "bl")
     return check.ok
 
 

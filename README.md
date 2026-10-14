@@ -175,7 +175,10 @@ offset.
 
 `patch_lk_dmverity.py` suppresses the dm-verity "device is corrupt / press power"
 screen with a two byte instruction patch, anchored on a unique code signature. It
-no-ops if the device doesn't have that screen.
+no-ops if the device doesn't have that screen. It also stops the AVB path from requesting
+`vendor_boot` (another two bytes, found by resolving the code that loads that
+name), which libavb otherwise reads in full when vbmeta verification is
+disabled. Skip it on devices that boot header v3/v4 images.
 
 `verify-lk.py` re-derives every target from the image and checks the patches by
 disassembly. It knows both the Android 9 and Android 10+ variants, and it also
