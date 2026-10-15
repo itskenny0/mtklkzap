@@ -85,6 +85,121 @@ def loads_string(data, start, end, target):
     return False
 
 
+def find_all(data, needle):
+    out, i = [], data.find(needle)
+    while i >= 0:
+        out.append(i); i = data.find(needle, i + 1)
+    return out
+
+
+def cstr(data, text):
+    hits = find_all(data, b"\0" + text + b"\0")
+    return hits[0] + 1 if len(hits) == 1 else None
+
+
+def _h16(data, o):
+    return data[o] | data[o + 1] << 8
+
+
+def pc_targets(data, lo, hi):
+    """{ldr_off -> resolved target} for every 'ldr rN,[pc,#x]; ...; add rN,pc'
+    pair whose ldr is in [lo, hi). Halfword scan (not linear disasm), so it is
+    robust across mixed code and literal pools, like the patcher."""
+    out = {}
+    for o in range(lo, min(hi, len(data) - 4), 2):
+        x = _h16(data, o)
+        if x >> 11 == 0b01001:                         # ldr rN,[pc,#imm8*4]
+            rn, lit = (x >> 8) & 7, ((o + 4) & ~3) + (x & 0xFF) * 4
+        elif x == 0xF8DF and _h16(data, o + 2) >> 12 < 8:   # ldr.w rN,[pc,#imm12]
+            rn, lit = _h16(data, o + 2) >> 12, ((o + 4) & ~3) + (_h16(data, o + 2) & 0xFFF)
+        else:
+            continue
+        if lit + 4 > len(data):
+            continue
+        val = int.from_bytes(data[lit:lit + 4], "little")
+        for k in range(2, 24, 2):
+            if _h16(data, o + k) == 0x4478 + rn:       # add rN,pc
+                out[o] = (val + o + k + 4) & 0xFFFFFFFF
+                break
+    return out
+
+
+def detect_report_locked(o, p):
+    """Re-derive the three report-locked sites from the ORIGINAL image and
+    report (table, {case:colour}, green_case, device_state_cbnz, verity_ldr),
+    or None when the patch is absent. Verification of `p` is done by verify()."""
+    colours = {}
+    for c in ("green", "yellow", "orange", "red"):
+        off = cstr(o, b"androidboot.verifiedbootstate=" + c.encode())
+        if off is None:
+            return None
+        colours[c] = off
+    # pc-relative loads of each colour string, across the image
+    load_of = {}
+    tgts = pc_targets(o, 0x200, len(o))
+    for c, off in colours.items():
+        hits = [a for a, t in tgts.items() if t == off]
+        if len(hits) != 1:
+            return None
+        load_of[c] = hits[0]
+    first = min(load_of.values())
+    tbbs = [x for x in range(first - 0x20, first, 2) if o[x:x + 4] == b"\xdf\xe8\x03\xf0"]
+    if len(tbbs) != 1:
+        return None
+    table = tbbs[0] + 4
+    # map each colour's load back to a table case
+    case_of = {}
+    for n in range(4):
+        tgt = table + 2 * o[table + n]
+        for c, ld in load_of.items():
+            if abs(ld - tgt) <= 4:
+                case_of[n] = c
+    if sorted(case_of.values()) != ["green", "orange", "red", "yellow"]:
+        return None
+    green = next(n for n, c in case_of.items() if c == "green")
+    # device_state cbnz
+    locked, unlocked = cstr(o, b"locked"), cstr(o, b"unlocked")
+    ds = None
+    for a, t in tgts.items():
+        if t != locked:
+            continue
+        cb = a - 2
+        x = o[cb] | o[cb + 1] << 8
+        if x & 0xFD00 != 0xB900:
+            continue
+        dest = cb + 4 + (((x >> 9) & 1) << 6 | ((x >> 3) & 0x1F) << 1)
+        if any(abs(la - dest) <= 4 and lt == unlocked for la, lt in tgts.items()):
+            ds = cb
+    # veritymode disabled-load
+    vm_opt = [a for a, t in tgts.items() if t == cstr(o, b"androidboot.veritymode")]
+    enf = cstr(o, b"enforcing")
+    vl = None
+    for a, t in tgts.items():
+        s_at = t
+        if o[s_at:s_at + 9] != b"disabled\0":
+            continue
+        if any(abs(a - x) < 0x200 for x in vm_opt) and \
+           any(abs(a - x) < 0x200 for x, tt in tgts.items() if tt == enf):
+            vl = a
+    edits = {}
+    for n, c in case_of.items():
+        if c in ("yellow", "orange"):
+            edits[table + n] = o[table + green]
+    if ds is not None:
+        edits[ds], edits[ds + 1] = 0x00, 0xBF          # nop
+    if vl is not None:
+        x = _h16(o, vl)
+        if x >> 11 == 0b01001:
+            rn, lit = (x >> 8) & 7, ((vl + 4) & ~3) + (x & 0xFF) * 4
+        else:
+            rn, lit = _h16(o, vl + 2) >> 12, ((vl + 4) & ~3) + (_h16(o, vl + 2) & 0xFFF)
+        addpc = next(vl + k for k in range(2, 24, 2) if _h16(o, vl + k) == 0x4478 + rn)
+        newval = (enf - (addpc + 4)) & 0xFFFFFFFF
+        for k in range(4):
+            edits[lit + k] = (newval >> (8 * k)) & 0xFF
+    return dict(table=table, case_of=case_of, green=green, ds=ds, vl=vl, enf=enf, edits=edits)
+
+
 class Checker:
     def __init__(self):
         self.ok = True
@@ -113,10 +228,19 @@ def verify(orig_path, patched_path):
     # patch adds 2 more (a single cbnz -> nop), so account for it if present.
     dmv_off = detect_dmverity(o, p)
     vb_off = detect_vendor_boot(o, p, {dmv_off})
-    expected = 100 + (2 if dmv_off is not None else 0) + (2 if vb_off is not None else 0)
+    rl = detect_report_locked(o, p)
+    # "present" means p actually carries every intended edit (and they really
+    # differ from the original). A plain dm-verity build leaves these untouched.
+    rl_present = bool(rl) and all(p[k] == val for k, val in rl["edits"].items()) \
+        and any(o[k] != val for k, val in rl["edits"].items())
+    rl_edits = {k: val for k, val in (rl["edits"].items() if rl_present else {}.items())
+                if o[k] != val}
+    expected = (100 + (2 if dmv_off is not None else 0)
+                + (2 if vb_off is not None else 0) + len(rl_edits))
     diffs = [i for i in range(len(o)) if o[i] != p[i]]
     label = f"{expected} bytes changed (orange" + (" + dm-verity" if dmv_off is not None else "") \
-        + (" + vendor_boot" if vb_off is not None else "") + ")"
+        + (" + vendor_boot" if vb_off is not None else "") \
+        + (" + report-locked" if rl_edits else "") + ")"
     check(f"exactly {label} (got {len(diffs)})", len(diffs) == expected)
 
     # --- text blanking -------------------------------------------------------
@@ -215,6 +339,35 @@ def verify(orig_path, patched_path):
               name > 0 and loads_string(o, vb_off - 16, vb_off, name))
         check("vendor_boot: a bl immediately precedes the cbnz",
               dis(o, vb_off - 4, 4)[0].mnemonic == "bl")
+
+    # --- optional report-locked patch (green / locked / enforcing) -----------
+    if rl_edits:
+        print(f"    report-locked patch present ({len(rl_edits)} bytes)")
+        # every intended edit is applied, and nothing else in those regions moved
+        check("report-locked: all intended bytes match in patched image",
+              all(p[k] == val for k, val in rl["edits"].items()))
+        # boot state: yellow and orange cases now jump to the green case
+        g = rl["green"]
+        for n, c in rl["case_of"].items():
+            if c in ("yellow", "orange"):
+                check(f"boot state: {c} case {n} now selects green",
+                      p[rl["table"] + n] == o[rl["table"] + g])
+        check("boot state: red case left unchanged",
+              all(p[rl["table"] + n] == o[rl["table"] + n]
+                  for n, c in rl["case_of"].items() if c == "red"))
+        # device_state: the cbnz that chose "unlocked" is now a nop
+        if check("device_state: cbnz site derived", rl["ds"] is not None):
+            now = dis(p, rl["ds"], 2)[0]
+            check("device_state: cbnz -> nop (always takes the locked load)",
+                  now.mnemonic == "nop")
+            locked = cstr(o, b"locked")
+            check("device_state: the fall-through still loads \"locked\"",
+                  locked in pc_targets(p, rl["ds"], rl["ds"] + 0x14).values())
+        # veritymode: the "disabled" load now resolves to "enforcing"
+        if check("veritymode: disabled-load site derived", rl["vl"] is not None):
+            tgt = pc_targets(p, rl["vl"], rl["vl"] + 8).get(rl["vl"])
+            check("veritymode: load now resolves to \"enforcing\"",
+                  tgt == rl["enf"] and p[tgt:tgt + 10] == b"enforcing\0")
     return check.ok
 
 

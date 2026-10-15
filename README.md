@@ -180,9 +180,19 @@ no-ops if the device doesn't have that screen. It also stops the AVB path from r
 name), which libavb otherwise reads in full when vbmeta verification is
 disabled. Skip it on devices that boot header v3/v4 images.
 
+With `--report-locked` it additionally rewrites what the bootloader *reports*
+to the OS: the `androidboot.verifiedbootstate` boot-state jump table has its
+yellow and orange cases retargeted to the green case, the `device_state` select
+`cbnz` is nopped so it always loads `"locked"`, and the `veritymode=disabled`
+string load is repointed to `"enforcing"`. These are cosmetic — the actual
+dm-verity decision stays gated by the vbmeta `HASHTREE_DISABLED` flag and key
+attestation is unchanged — so the device still boots with verity genuinely off
+while presenting a green/locked/enforcing state. Owner intent only; it does not
+make the reported state cryptographically genuine.
+
 `verify-lk.py` re-derives every target from the image and checks the patches by
 disassembly. It knows both the Android 9 and Android 10+ variants, and it also
-validates the dm-verity patch when present.
+validates the dm-verity, vendor_boot and report-locked patches when present.
 
 `patch_lk_relock.py` blocks the registered Fastboot relock handler on reviewed stock LK images. `verify_lk_relock.py` checks the handler-only diff and the Fastboot `FAIL` response path. See [RELOCK.md](docs/RELOCK.md) for supported firmware and patch order.
 
