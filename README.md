@@ -188,7 +188,10 @@ string load is repointed to `"enforcing"`. These are cosmetic — the actual
 dm-verity decision stays gated by the vbmeta `HASHTREE_DISABLED` flag and key
 attestation is unchanged — so the device still boots with verity genuinely off
 while presenting a green/locked/enforcing state. Owner intent only; it does not
-make the reported state cryptographically genuine.
+make the reported state cryptographically genuine. Warning: May cause the system
+to reboot to recovery and being unable to decrypt userdata; if factory reset does
+not help here, your kernel reverifies. In this case, do not use this option and
+flash back a backup without the report-locked patch.
 
 `verify-lk.py` re-derives every target from the image and checks the patches by
 disassembly. It knows both the Android 9 and Android 10+ variants, and it also
